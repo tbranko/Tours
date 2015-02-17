@@ -1,4 +1,5 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#fff" >
@@ -11,6 +12,13 @@
         android:layout_marginBottom="40dp"
         android:layout_marginTop="20dp"
         android:text="Heading: 0.0" />
+
+    <FrameLayout
+        android:id="@+id/camera_preview"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="1"
+        />
 
     <ImageView
         android:id="@+id/imageViewCompass"

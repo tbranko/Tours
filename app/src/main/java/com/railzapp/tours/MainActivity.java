@@ -1,6 +1,7 @@
 package com.railzapp.tours;
 
 import android.app.Activity;
+import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -8,10 +9,11 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-public class CameraActivity extends Activity implements SensorEventListener {
+public class MainActivity extends Activity implements SensorEventListener {
 
     // define the display assembly compass picture
     private ImageView image;
@@ -23,6 +25,9 @@ public class CameraActivity extends Activity implements SensorEventListener {
     private SensorManager mSensorManager;
 
     TextView tvHeading;
+
+    private Camera mCamera;
+    private CameraPreview mPreview;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +42,15 @@ public class CameraActivity extends Activity implements SensorEventListener {
 
         // initialize your android device sensor capabilities
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+        // Create an instance of Camera
+        mCamera = getCameraInstance();
+        mCamera.setDisplayOrientation(90);
+
+        // Create our Preview view and set it as the content of our activity.
+        mPreview = new CameraPreview(this, mCamera);
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        preview.addView(mPreview);
     }
 
     @Override
@@ -81,7 +95,18 @@ public class CameraActivity extends Activity implements SensorEventListener {
         // Start the animation
         image.startAnimation(ra);
         currentDegree = -degree;
+    }
 
+    /** A safe way to get an instance of the Camera object. */
+    public static Camera getCameraInstance(){
+        Camera c = null;
+        try {
+            c = Camera.open(); // attempt to get a Camera instance
+        }
+        catch (Exception e){
+            // Camera is not available (in use or does not exist)
+        }
+        return c; // returns null if camera is unavailable
     }
 
     @Override
