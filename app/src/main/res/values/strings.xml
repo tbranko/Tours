@@ -8,5 +8,11 @@
     <string name="map">Map</string>
     <string name="other">Other</string>
     <string name="title_activity_maps">MapsActivity</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="preference_file_key">alkdsfh43345lkh</string>
+    <string name="address_text">AddressText</string>
+    <string name="pref_lat">pref_lat</string>
+    <string name="pref_lng">pref_lng</string>
 
 </resources>

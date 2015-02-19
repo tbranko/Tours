@@ -1,14 +1,18 @@
 package com.railzapp.tours;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.hardware.Camera;
+import android.hardware.GeomagneticField;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.animation.Animation;
@@ -16,6 +20,8 @@ import android.view.animation.RotateAnimation;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.google.android.gms.maps.model.LatLng;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
@@ -27,6 +33,9 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // record the compass picture angle turned
     private float currentDegree = 0f;
+
+    // Destination LatLng
+    private Location destination;
 
     // device sensor manager
     private SensorManager mSensorManager;
@@ -72,6 +81,13 @@ public class MainActivity extends Activity implements SensorEventListener {
         // for the system's orientation sensor registered listeners
         mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
                 SensorManager.SENSOR_DELAY_GAME);
+
+        SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE);
+        double shared_lat = Double.valueOf(sharedPref.getString(getString(R.string.pref_lat), "0.00"));
+        double shared_lng = Double.valueOf(sharedPref.getString(getString(R.string.pref_lng), "0.00"));
+        this.destination = new Location("destination");
+        destination.setLatitude(shared_lat);
+        destination.setLongitude(shared_lng);
     }
 
     @Override
@@ -98,8 +114,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.map:
-                Intent intent_home_location = new Intent(this, MapsActivity.class);
-                startActivity(intent_home_location);
+                Intent intent_maps = new Intent(this, MapsActivity.class);
+                startActivity(intent_maps);
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -109,22 +125,44 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent event) {
 
-        // get the angle around the z-axis rotated
-        float degree = Math.round(event.values[0]);
-
-//        gps.updateGPSCoordinates();
-//        Location currentLoc = gps.getLocation();
+        gps.updateGPSCoordinates();
+        Location currentLoc = gps.getLocation();
 //        Location destination = new Location("");
-//        destination.setLatitude(50.8319238);
-//        destination.setLongitude(4.3623699);
-//        degree = currentLoc.bearingTo(destination);
+//        this.destination.setLatitude(50.827955);
+//        this.destination.setLongitude(4.377515);
+        float degree = currentLoc.bearingTo(destination);
 
-        tvHeading.setText("Heading: " + Float.toString(degree) + " degrees");
+        float azimuth = event.values[0];
+        GeomagneticField geoField = new GeomagneticField(
+                Double.valueOf(currentLoc.getLatitude()).floatValue(),
+                Double.valueOf(currentLoc.getLongitude()).floatValue(),
+                Double.valueOf( currentLoc.getAltitude() ).floatValue(),
+                System.currentTimeMillis() );
+
+        azimuth -= geoField.getDeclination(); // converts magnetic north into true north
+        // Store the bearingTo in the bearTo variable
+        float bearTo = currentLoc.bearingTo(this.destination);
+
+        // If the bearTo is smaller than 0, add 360 to get the rotation clockwise.
+        if (bearTo < 0) {
+            bearTo = bearTo + 360;
+        }
+
+        //This is where we choose to point it
+        float direction = bearTo - azimuth;
+
+        // If the direction is smaller than 0, add 360 to get the rotation clockwise.
+        if (direction < 0) {
+            direction = direction + 360;
+        }
+        // TODO Find out why we have to add 45 to direction to fix it, and is it going to work
+        // in all situations
+        degree = direction;
 
         // create a rotation animation (reverse turn degree degrees)
         RotateAnimation ra = new RotateAnimation(
                 currentDegree,
-                -degree,
+                degree,
                 Animation.RELATIVE_TO_SELF, 0.5f,
                 Animation.RELATIVE_TO_SELF,
                 0.5f);
@@ -137,7 +175,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // Start the animation
         image.startAnimation(ra);
-        currentDegree = -degree;
+        currentDegree = degree;
     }
 
     /** A safe way to get an instance of the Camera object. */
