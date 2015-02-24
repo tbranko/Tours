@@ -21,8 +21,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.google.android.gms.maps.model.LatLng;
-
 public class MainActivity extends Activity implements SensorEventListener {
 
     // define the display assembly compass picture
@@ -60,6 +58,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // initialize your android device sensor capabilities
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+        //DB PLAYGROUND
+//        Intent intent_test_db = new Intent(this, TestDatabaseActivity.class);
+//        startActivity(intent_test_db);
     }
 
     @Override
