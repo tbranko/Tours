@@ -12,7 +12,6 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.animation.Animation;
@@ -24,21 +23,20 @@ import android.widget.TextView;
 public class MainActivity extends Activity implements SensorEventListener {
 
     // define the display assembly compass picture
-    private ImageView image;
+    private ImageView mImageView;
 
     // GPS class is helper for all Location based stuff
     private GPS gps;
 
     // record the compass picture angle turned
-    private float currentDegree = 0f;
+    private float mCurrentDegree = 0f;
 
     // Destination LatLng
-    private Location destination;
+    private Location mDestination;
 
     // device sensor manager
     private SensorManager mSensorManager;
 
-    TextView tvHeading;
 
     private Camera mCamera;
     private CameraPreview mPreview;
@@ -48,13 +46,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        gps = new GPS(this);
-
-        //
-        image = (ImageView) findViewById(R.id.imageViewCompass);
-
-        // TextView that will tell the user what degree is he heading
-        tvHeading = (TextView) findViewById(R.id.tvHeading);
+        mImageView = (ImageView) findViewById(R.id.imageViewCompass);
 
         // initialize your android device sensor capabilities
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -67,6 +59,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     @Override
     protected void onResume() {
         super.onResume();
+
+        gps = new GPS(this);
 
         if (mCamera == null) {
             mCamera = getCameraInstance();
@@ -82,26 +76,28 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // for the system's orientation sensor registered listeners
         mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-                SensorManager.SENSOR_DELAY_GAME);
+                SensorManager.SENSOR_DELAY_UI);
 
         SharedPreferences sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE);
         double shared_lat = Double.valueOf(sharedPref.getString(getString(R.string.pref_lat), "0.00"));
         double shared_lng = Double.valueOf(sharedPref.getString(getString(R.string.pref_lng), "0.00"));
-        this.destination = new Location("destination");
-        destination.setLatitude(shared_lat);
-        destination.setLongitude(shared_lng);
+        this.mDestination = new Location("mDestination");
+        mDestination.setLatitude(shared_lat);
+        mDestination.setLongitude(shared_lng);
     }
 
     @Override
     protected void onPause() {
-        super.onPause();
-
         // to stop the listener and save battery
         mSensorManager.unregisterListener(this);
 
         if (mCamera != null) {
             mCamera = null;
         }
+
+        gps.stopUsingGPS();
+
+        super.onPause();
     }
 
     @Override
@@ -129,10 +125,10 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         gps.updateGPSCoordinates();
         Location currentLoc = gps.getLocation();
-//        Location destination = new Location("");
-//        this.destination.setLatitude(50.827955);
-//        this.destination.setLongitude(4.377515);
-        float degree = currentLoc.bearingTo(destination);
+//        Location mDestination = new Location("");
+//        this.mDestination.setLatitude(50.827955);
+//        this.mDestination.setLongitude(4.377515);
+        float degree = currentLoc.bearingTo(mDestination);
 
         float azimuth = event.values[0];
         GeomagneticField geoField = new GeomagneticField(
@@ -143,7 +139,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         azimuth -= geoField.getDeclination(); // converts magnetic north into true north
         // Store the bearingTo in the bearTo variable
-        float bearTo = currentLoc.bearingTo(this.destination);
+        float bearTo = currentLoc.bearingTo(this.mDestination);
 
         // If the bearTo is smaller than 0, add 360 to get the rotation clockwise.
         if (bearTo < 0) {
@@ -163,7 +159,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         // create a rotation animation (reverse turn degree degrees)
         RotateAnimation ra = new RotateAnimation(
-                currentDegree,
+                mCurrentDegree,
                 degree,
                 Animation.RELATIVE_TO_SELF, 0.5f,
                 Animation.RELATIVE_TO_SELF,
@@ -176,8 +172,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         ra.setFillAfter(true);
 
         // Start the animation
-        image.startAnimation(ra);
-        currentDegree = degree;
+        mImageView.startAnimation(ra);
+        mCurrentDegree = degree;
     }
 
     /** A safe way to get an instance of the Camera object. */
