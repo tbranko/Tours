@@ -163,34 +163,17 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (lastUpdate + updateInterval < System.nanoTime()) {
             lastUpdate = System.nanoTime();
 
-            // Calculate azimuth
-            float azimuth = 0.0f;
             if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) mGravity = event.values;
             if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) mGeomagnetic = event.values;
             if (mGravity != null && mGeomagnetic != null
                     && (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER || event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)) {
-                float R[] = new float[9];
-                float I[] = new float[9];
-                boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
-                if (success) {
-                    float orientation[] = new float[3];
-                    SensorManager.getOrientation(R, orientation);
-                    azimuth = (float)Math.toDegrees(orientation[0]); // orientation contains: azimuth, pitch and roll, in RADIANS
-                }
 
+                // Get current location
                 gps.updateGPSCoordinates();
                 Location currentLoc = gps.getLocation();
-                //        Location mDestination = new Location("");
-                //        this.mDestination.setLatitude(50.827955);
-                //        this.mDestination.setLongitude(4.377515);
 
-                GeomagneticField geoField = new GeomagneticField(
-                        Double.valueOf(currentLoc.getLatitude()).floatValue(),
-                        Double.valueOf(currentLoc.getLongitude()).floatValue(),
-                        Double.valueOf(currentLoc.getAltitude()).floatValue(),
-                        System.currentTimeMillis());
-
-                azimuth -= geoField.getDeclination(); // converts magnetic north into true north
+                // Get azimuth
+                float azimuth = getAzimuth(currentLoc);
                 // Store the bearingTo in the bearTo variable
                 float bearTo = currentLoc.bearingTo(this.mDestination);
 
@@ -210,56 +193,85 @@ public class MainActivity extends Activity implements SensorEventListener {
                 //    degree = degree + 360;
                 //}
 
-                // Move red circle
-                int horizontalShift = Math.round(bearTo);
+                moveRedCircle(bearTo, degree);
+
+                rotateArrow(degree);
+            }
+        }
+    }
+
+    private void moveRedCircle(float bearTo, float degree) {
+        // Move red circle
+        int horizontalShift = Math.round(bearTo);
 
 Log.e(TAG, "Degree: " + degree);
 Log.e(TAG, "bear to: " + bearTo);
 Log.e(TAG, "mCurrentDegree: " + mCurrentDegree);
 Log.e(TAG, "horizontalShift: " + horizontalShift);
 
-                TranslateAnimation ta;
-                int[] mImageViewRedCircleXY = new int[2];
-                mImageViewRedCircle.getLocationOnScreen(mImageViewRedCircleXY);
+        TranslateAnimation ta;
+        int[] mImageViewRedCircleXY = new int[2];
+        mImageViewRedCircle.getLocationOnScreen(mImageViewRedCircleXY);
 
-Log.e(TAG, "X: " + mImageViewRedCircleXY[0] + ", Y: " + mImageViewRedCircleXY[1]);
+        Log.e(TAG, "X: " + mImageViewRedCircleXY[0] + ", Y: " + mImageViewRedCircleXY[1]);
 
-                if (mCurrentDegree < degree) { // go right
-                    horizontalShift = Math.round(mImageViewRedCircleXY[0] + horizontalShift);
-                    horizontalShift = horizontalShift > VIEWPOINT_MAX_Y ? VIEWPOINT_MAX_Y : horizontalShift;
-                } else { //go left
-                    horizontalShift = Math.round(mImageViewRedCircleXY[0] - horizontalShift);
-                    horizontalShift = horizontalShift < VIEWPOINT_MIN_Y ? VIEWPOINT_MIN_Y : horizontalShift;
-                }
-                ta = new TranslateAnimation(
-                        Animation.ABSOLUTE, mImageViewRedCircleXY[0],
-                        Animation.ABSOLUTE, horizontalShift,
-                        Animation.ABSOLUTE, 0.0f,
-                        Animation.ABSOLUTE, 0.0f
-
-                );
-                ta.setDuration(200);
-                ta.setFillAfter(false);
-                mImageViewRedCircle.startAnimation(ta);
-                mImageViewRedCircle.setLeft(horizontalShift);
-
-                // create a rotation animation for arrow (reverse turn degree degrees)
-                RotateAnimation ra = new RotateAnimation(
-                        mCurrentDegree,
-                        degree,
-                        Animation.RELATIVE_TO_SELF, 0.5f,
-                        Animation.RELATIVE_TO_SELF, 0.5f
-                );
-                // how long the animation will take place
-                ra.setDuration(210);
-                // set the animation after the end of the reservation status
-                ra.setFillAfter(true);
-                // Start the animation
-                mImageViewArrow.startAnimation(ra);
-                mCurrentDegree = degree;
-
-            }
+        if (mCurrentDegree < degree) { // go right
+            horizontalShift = Math.round(mImageViewRedCircleXY[0] + horizontalShift);
+            horizontalShift = horizontalShift > VIEWPOINT_MAX_Y ? VIEWPOINT_MAX_Y : horizontalShift;
+        } else { //go left
+            horizontalShift = Math.round(mImageViewRedCircleXY[0] - horizontalShift);
+            horizontalShift = horizontalShift < VIEWPOINT_MIN_Y ? VIEWPOINT_MIN_Y : horizontalShift;
         }
+        ta = new TranslateAnimation(
+                Animation.ABSOLUTE, mImageViewRedCircleXY[0],
+                Animation.ABSOLUTE, horizontalShift,
+                Animation.ABSOLUTE, 0.0f,
+                Animation.ABSOLUTE, 0.0f
+
+        );
+        ta.setDuration(200);
+        ta.setFillAfter(true);
+        mImageViewRedCircle.startAnimation(ta);
+        //mImageViewRedCircle.setLeft(horizontalShift);
+    }
+
+    private void rotateArrow(float degree) {
+        // create a rotation animation for arrow (reverse turn degree degrees)
+        RotateAnimation ra = new RotateAnimation(
+                mCurrentDegree,
+                degree,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f
+        );
+        // how long the animation will take place
+        ra.setDuration(210);
+        // set the animation after the end of the reservation status
+        ra.setFillAfter(true);
+        // Start the animation
+        mImageViewArrow.startAnimation(ra);
+        mCurrentDegree = degree;
+    }
+
+    private float getAzimuth(Location currentLoc) {
+        float azimuth = 0.0f;
+        float R[] = new float[9];
+        float I[] = new float[9];
+        boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+        if (success) {
+            float orientation[] = new float[3];
+            SensorManager.getOrientation(R, orientation);
+            azimuth = (float)Math.toDegrees(orientation[0]); // orientation contains: azimuth, pitch and roll, in RADIANS
+        }
+
+
+        GeomagneticField geoField = new GeomagneticField(
+                Double.valueOf(currentLoc.getLatitude()).floatValue(),
+                Double.valueOf(currentLoc.getLongitude()).floatValue(),
+                Double.valueOf(currentLoc.getAltitude()).floatValue(),
+                System.currentTimeMillis());
+
+        azimuth -= geoField.getDeclination(); // converts magnetic north into true north
+        return azimuth;
     }
 
     /** A safe way to get an instance of the Camera object. */
