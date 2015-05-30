@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Path;
 import android.hardware.Camera;
 import android.hardware.GeomagneticField;
 import android.hardware.Sensor;
@@ -20,6 +21,8 @@ import android.view.animation.RotateAnimation;
 import android.view.animation.TranslateAnimation;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+
+import com.railzapp.tours.logic.AngleLowPassFilter;
 
 public class MainActivity extends Activity implements SensorEventListener {
 
@@ -92,8 +95,8 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
 
         // for the system's orientation sensor registered listeners
-//        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION), SensorManager.SENSOR_DELAY_UI);
-        //mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION), 5000000); // Value is in microseconds
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION), SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION), 5000000); // Value is in microseconds
         // TODO Figure out why it doesn't work with accelerometer/magnetometer
         // Need to replace this TYPE_ORIENTATION
         mSensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
@@ -106,16 +109,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         this.mDestination = new Location("mDestination");
         mDestination.setLatitude(shared_lat);
         mDestination.setLongitude(shared_lng);
-
-
-        // TEST
-        TranslateAnimation ta;
-        int horizontalShift = 0;
-        int[] mImageViewRedCircleXY = new int[2];
-        mImageViewRedCircle.getLocationOnScreen(mImageViewRedCircleXY);
-        Log.e(TAG, "X: " + mImageViewRedCircleXY[0] + ", Y: " + mImageViewRedCircleXY[1] );
-        Log.e(TAG, "Top: " + mImageViewRedCircle.getTop() + ", Left: " + mImageViewRedCircle.getLeft() );
-
     }
 
     @Override
@@ -155,18 +148,24 @@ public class MainActivity extends Activity implements SensorEventListener {
     float[] mGravity;
     float[] mGeomagnetic;
     long lastUpdate = 0l;
-    long updateInterval = 500000000l; // Nanoseconds
+    long updateInterval = 500000l; // Nanoseconds
+    AngleLowPassFilter lowPassFilter = new AngleLowPassFilter();
     @Override
     public void onSensorChanged(SensorEvent event) {
+Log.e("debug", "called onSensorChanged");
         // There needs to be some way of managing how frequent this method is going to be called
         // Sensor Frequency is not usable for that, there needs to be external controller
-        if (lastUpdate + updateInterval < System.nanoTime()) {
+//        if (lastUpdate + updateInterval < System.nanoTime()) {
             lastUpdate = System.nanoTime();
 
             if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) mGravity = event.values;
             if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) mGeomagnetic = event.values;
             if (mGravity != null && mGeomagnetic != null
-                    && (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER || event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)) {
+                    && (
+                        event.sensor.getType() == Sensor.TYPE_ACCELEROMETER
+                        || event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD
+                        || event.sensor.getType() == Sensor.TYPE_ORIENTATION
+                    )) {
 
                 // Get current location
                 gps.updateGPSCoordinates();
@@ -180,30 +179,69 @@ public class MainActivity extends Activity implements SensorEventListener {
                 // If the bearTo is smaller than 0, add 360 to get the rotation clockwise.
                 float adjustedBearTo = bearTo;
                 // TODO Test if it works better with this or without
-//                if (bearTo < 0) {
-//                    adjustedBearTo = bearTo + 360;
-//                }
+                if (bearTo < 0) {
+                    adjustedBearTo = bearTo + 360;
+                }
 
                 //This is where we choose to point it
                 float degree = adjustedBearTo - azimuth;
 
                 // TODO Test if it works better with this or without
                 // If the direction is smaller than 0, add 360 to get the rotation clockwise.
-                //if (degree < 0) {
-                //    degree = degree + 360;
-                //}
+                if (degree < 0) {
+                    degree = degree + 360;
+                }
 
-                moveRedCircle(bearTo, degree);
-
+                //moveRedCircle(bearTo, degree);
+//                if(!lowPassFilter.isReady()) {
+//                    lowPassFilter.add(degree);
+//                }
+//                else {
+//                    rotateArrow(lowPassFilter.average());
+//                }
                 rotateArrow(degree);
-            }
+
+//            }
         }
     }
 
     private void moveRedCircle(float bearTo, float degree) {
-        // Move red circle
-        int horizontalShift = Math.round(bearTo);
 
+        // Get vertical position of the circle
+        int[] mImageViewRedCircleXY = new int[2];
+        mImageViewRedCircle.getLocationOnScreen(mImageViewRedCircleXY);
+        // X value should be vertical offset, when phone is in portrait
+        int imageX = mImageViewRedCircleXY[0];
+        int imageY = mImageViewRedCircleXY[1];
+
+Log.e(TAG, "imageX: " + imageX + ", imageY: " + imageY);
+
+        // Create horizontal line
+        Path horizontalLine = new Path();
+        horizontalLine.moveTo(0, imageX);
+
+        // Get angled line from arrow
+        int[] mImageViewArrowXY = new int[2];
+        mImageViewArrow.getLocationOnScreen(mImageViewArrowXY);
+        // First point is location. Second needs to be calculated based on angle
+        int arrowX = mImageViewArrowXY[0];
+        int arrowY = mImageViewArrowXY[1];
+        double d = (double)bearTo;
+
+        int point2 = (int)Math.abs(Math.round(Math.sin(d) * 100));
+Log.e(TAG, "arrowX: " + arrowX + ", arrowY: " + arrowY);
+Log.e(TAG, "degree: " + degree);
+Log.e(TAG, "bearTo: " + bearTo);
+Log.e(TAG, "Math.sin(d): " + Math.sin(d));
+Log.e(TAG, "point2: " + point2);
+        // Find intersection between lines
+
+        // Intersection is the point where circle should be rendered
+
+        // If the intersection is outside of the boundaries of ViewFinder, still draw it inside the ViewFinder
+
+/**
+        int horizontalShift = Math.round(bearTo);
 Log.e(TAG, "Degree: " + degree);
 Log.e(TAG, "bear to: " + bearTo);
 Log.e(TAG, "mCurrentDegree: " + mCurrentDegree);
@@ -222,6 +260,7 @@ Log.e(TAG, "horizontalShift: " + horizontalShift);
             horizontalShift = Math.round(mImageViewRedCircleXY[0] - horizontalShift);
             horizontalShift = horizontalShift < VIEWPOINT_MIN_Y ? VIEWPOINT_MIN_Y : horizontalShift;
         }
+
         ta = new TranslateAnimation(
                 Animation.ABSOLUTE, mImageViewRedCircleXY[0],
                 Animation.ABSOLUTE, horizontalShift,
@@ -233,6 +272,7 @@ Log.e(TAG, "horizontalShift: " + horizontalShift);
         ta.setFillAfter(true);
         mImageViewRedCircle.startAnimation(ta);
         //mImageViewRedCircle.setLeft(horizontalShift);
+ **/
     }
 
     private void rotateArrow(float degree) {

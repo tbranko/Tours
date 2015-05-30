@@ -1,24 +1,27 @@
 package com.railzapp.tours.logic;
 
-public class AngleLowpassFilter {
+import java.util.ArrayDeque;
+
+public class AngleLowPassFilter {
 
     private final int LENGTH = 10;
 
     private float sumSin, sumCos;
 
-    private ArrayDeque<Float> queue = new ArrayDeque<Float>();
+    private ArrayDeque<Double> queue = new ArrayDeque<Double>();
 
-    public void add(float radians){
+    public void add(double degrees) {
+        double radians = Math.toRadians(degrees);
 
-        sumSin += (float) Math.sin(radians);
+        sumSin += (double) Math.sin(radians);
 
-        sumCos += (float) Math.cos(radians);
+        sumCos += (double) Math.cos(radians);
 
         queue.add(radians);
 
-        if(queue.size() > LENGTH){
+        if (queue.size() > LENGTH) {
 
-            float old = queue.poll();
+            double old = queue.poll();
 
             sumSin -= Math.sin(old);
 
@@ -26,10 +29,15 @@ public class AngleLowpassFilter {
         }
     }
 
-    public float average(){
+    public float average() {
 
         int size = queue.size();
+        double result = Math.atan2(sumSin / size, sumCos / size);
+        return (float)Math.toDegrees(result);
+    }
 
-        return (float) Math.atan2(sumSin / size, sumCos / size);
+    public boolean isReady() {
+        if (queue.size() >= LENGTH) return true;
+        return false;
     }
 }

@@ -35,7 +35,7 @@
         android:theme="@android:style/Theme.Holo" >
         <meta-data
             android:name="com.google.android.maps.v2.API_KEY"
-            android:value="AIzaSyBdgPn4KKMjoof_-zlpbOio_4PetVQ2I_E" />
+            android:value="AIzaSyAotPCS6OLMkQMO9ZLJIYyK64MDuGrfLvg" />
 
         <activity
             android:name=".MainActivity"
